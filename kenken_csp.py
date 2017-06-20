@@ -51,6 +51,42 @@ def kenken_csp_model(kenken_grid):
        same row, etc.) and an n-ary constraint for each cage in the grid.
     '''
 
-    ##IMPLEMENT
+    #generate dom
+    size = kenken_grid[0][0]
+    dom = []
+    i=0
+    for i in range(1, size+1):
+        dom.append(i)
+
+    # generate vars
+    vars = []
+    for i in range(1, size+1):
+        for j in range(1, size+1):
+            vars.append(Variable('V{}{}'.format(i,j), dom))
+    
+    print ("end making vars")
+
+    #generate list of n list of 1-9
+    varDoms = []
+    for i in range(1, size+1):
+        each_dom = []
+        for j in range(1, size+1):
+            each_dom.append(j)
+        varDoms.append(each_dom)
+            
+    cons = []
+    #generate sat_tuples for all diff constraints
+    sat_tuples = []
+    for t in itertools.product(*varDoms):
+        #NOTICE use of * to convert the list v to a sequence of arguments to product
+        #if is_unique(t):
+        sat_tuples.append(t)
+
+    for i in range(1, size+1):
+        scope = []
+        for j in range(0, size):
+            scope.append(vars[(i-1)*size + j])
+        con = Constraint("C(row{})".format(i),scope)
+        con.add_satisfying_tuples(sat_tuples)
     
     

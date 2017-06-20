@@ -1,6 +1,7 @@
 #Look for #IMPLEMENT tags in this file. These tags indicate what has
 #to be implemented to complete problem solution.  
 
+from queue import *
 '''This file will contain different constraint propagators to be used within 
    bt_search.
 
@@ -76,14 +77,105 @@ def prop_BT(csp, newVar=None):
                 return False, []
     return True, []
 
+# helper function
+def check_var_in_cons (pruned, c):
+    '''  given c, check scope, if only one variable not assigned,
+    check if that variable obey the cons
+    '''
+    if c.get_n_unasgn() == 1:
+        scope = c.get_scope()
+        vals = []
+        unass = -1        
+        
+        for i in range(0, len(scope)):
+            if scope[i].is_assigned():
+                vals.append(scope[i].get_assigned_value())
+            elif not scope[i].is_assigned():
+                unass = i
+                vals.append(-1)
+        domain = scope[unass].cur_domain()
+        #variable for one cons
+        for vl in domain:
+            vals[unass] = vl
+            if not c.check(vals):   #prune
+                if (scope[unass], vl) not in pruned:
+                    scope[unass].prune_value(vl)
+                    pruned.append((scope[unass], vl))
+        if scope[unass].cur_domain() == []:
+            return False, pruned  
+    return True, pruned
+
 def prop_FC(csp, newVar=None):
     '''Do forward checking. That is check constraints with 
        only one uninstantiated variable. Remember to keep 
        track of all pruned variable,value pairs and return '''
-#IMPLEMENT
+    
+    if newVar is None:
+        #no newVar, forward_check constraints whose scope contains only one variable
+        cons = csp.get_all_cons()
+        pruned = []
+        status = True
+        for c in cons:
+            #do forward check
+            if c.get_n_unasgn() is 1:
+                status, pruned = check_var_in_cons(pruned, c)
+                if status is False:
+                    return False, pruned                
+                
+    else:
+        #newVar not None, run FC on all constraints that contain newVar.
+        pruned = []
+        for c in csp.get_cons_with_var(newVar):
+            #do forward check
+            status, pruned = check_var_in_cons(pruned, c)
+            if status == False:
+                return False, pruned
+                        
+    return True, pruned    
+
+# helper function
+def gac_enforce(csp, queue, pruned):
+    checked = []
+    while not queue.empty():
+        c = queue.get()
+        checked.append(c)
+        for v in c.get_scope():    #for every variable in cons's scope
+            for d in v.cur_domain():     #for every value in the variable's domain
+                #find an assignment for each value d
+                if not c.has_support(v, d):
+                    pruned.append((v, d))
+                    v.prune_value(d)
+                    if len(v.cur_domain()) is 0:
+                        queue.empty()
+                        return False, pruned
+                    else:
+                        new = csp.get_cons_with_var(v)
+                        for n in new:
+                            if n in checked:
+                                checked.remove(n)
+                                queue.put(n)
+                            else:
+                                pass
+                else:
+                    pass
+    return True, pruned
 
 def prop_GAC(csp, newVar=None):
     '''Do GAC propagation. If newVar is None we do initial GAC enforce 
        processing all constraints. Otherwise we do GAC enforce with
        constraints containing newVar on GAC Queue'''
-#IMPLEMENT
+    
+    pruned = []
+    all_cons = csp.get_all_cons()
+    q = Queue(len(all_cons))    
+    if newVar == None:
+        for c in all_cons:
+            q.put(c)
+        return gac_enforce(csp, q, pruned)
+        
+    else:
+        cons = csp.get_cons_with_var(newVar)
+        for c in cons:
+            q.put(c)
+        return gac_enforce(csp, q, pruned)
+

@@ -28,6 +28,21 @@ def ord_mrv(csp):
     MRV returns the variable with the most constrained current domain 
     (i.e., the variable with the fewest legal values).
     '''
-#IMPLEMENT
+    
+    unasgn_vars = []
+    for var in csp.vars:
+        if not var.is_assigned():
+            unasgn_vars.append(var)
+    
+    md = -1
+    mv = None
+    for v in unasgn_vars:
+        if md < 0:
+            md = v.cur_domain_size()
+            mv = v
+        elif v.cur_domain_size() < md:
+            md = v.cur_domain_size()
+            mv = v
+    return mv    
 
 
