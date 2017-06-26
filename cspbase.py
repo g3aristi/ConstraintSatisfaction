@@ -348,6 +348,10 @@ class CSP:
         '''return list of variables in the CSP'''
         return list(self.vars)
 
+    def get_all_unasgn_vars(self):
+        '''return list of unassigned variables in the CSP'''
+        return [v for v in self.vars if not v.is_assigned()]
+
     def print_all(self):
         print("CSP", self.name)
         print("   Variables = ", self.vars)
@@ -416,29 +420,11 @@ class BT:
                 var.unassign()
             var.restore_curdom()
 
-    def extractMRVvar(self):
-        '''Remove variable with minimum sized cur domain from list of
-           unassigned vars. Would be faster to use heap...but this is
-           not production code.
-        '''
-
-        md = -1
-        mv = None
-        for v in self.unasgn_vars:
-            if md < 0:
-                md = v.cur_domain_size()
-                mv = v
-            elif v.cur_domain_size() < md:
-                md = v.cur_domain_size()
-                mv = v
-        self.unasgn_vars.remove(mv)
-        return mv
-
     def restoreUnasgnVar(self, var):
         '''Add variable back to list of unassigned vars'''
         self.unasgn_vars.append(var)
         
-    def bt_search(self,propagator):
+    def bt_search(self,propagator,var_ord=None,val_ord=None):
         '''Try to solve the CSP using specified propagator routine
 
            propagator == a function with the following template
@@ -468,7 +454,11 @@ class BT:
            values when it undoes a variable assignment.
 
            NOTE propagator SHOULD NOT prune a value that has already been 
-           pruned! Nor should it prune a value twice'''
+           pruned! Nor should it prune a value twice
+
+           var_ord is the variable ordering function currently being used; 
+           val_ord is the value ordering function currently being used.
+           '''
 
         self.clear_stats()
         stime = time.process_time()
@@ -491,8 +481,7 @@ class BT:
             print("CSP{} detected contradiction at root".format(
                 self.csp.name))
         else:
-            status = self.bt_recurse(propagator, 1)   #now do recursive search
-
+            status = self.bt_recurse(propagator, var_ord, val_ord, 1)   #now do recursive search
 
         self.restoreValues(prunings)
         if status == False:
@@ -505,7 +494,7 @@ class BT:
         print("bt_search finished")
         self.print_stats()
 
-    def bt_recurse(self, propagator, level):
+    def bt_recurse(self, propagator, var_ord, val_ord, level):
         '''Return true if found solution. False if still need to search.
            If top level returns false--> no solution'''
 
@@ -516,11 +505,23 @@ class BT:
             #all variables assigned
             return True
         else:
-            var = self.extractMRVvar()
+            ##Figure out which variable to assign,
+            ##Then remove it from the list of unassigned vars
+            if var_ord:
+              var = var_ord(self.csp)
+            else:
+              var = self.unasgn_vars[0]
+            self.unasgn_vars.remove(var) 
+
             if self.TRACE:
                 print('  ' * level, "bt_recurse var = ", var)
 
-            for val in var.cur_domain():
+            if val_ord:
+              value_order = val_ord(self.csp,var)
+            else:
+              value_order = var.cur_domain()
+
+            for val in value_order:
 
                 if self.TRACE:
                     print('  ' * level, "bt_recurse trying", var, "=", val)
@@ -536,7 +537,7 @@ class BT:
                     print('  ' * level, "bt_recurse prop pruned = ", prunings)
 
                 if status:
-                    if self.bt_recurse(propagator, level+1):
+                    if self.bt_recurse(propagator, var_ord,val_ord, level+1):
                         return True
 
                 if self.TRACE:
