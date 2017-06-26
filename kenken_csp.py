@@ -181,13 +181,11 @@ def kenken_csp_model(kenken_grid):
         scope = []
         varDoms = []
         for j in range(0, len(each_cage) - 2):
-            each_dom = []
-            for k in range(1, size+1):
-                each_dom.append(k)
+            each_dom = list(range(1, size+1))
             varDoms.append(each_dom)
             index1 = int(str(each_cage[j])[0])
             index2 = int(str(each_cage[j])[1])
-            scope.append(vars[index1-1][index2-1])
+            scope.append(vars[index1 - 1][index2 - 1])
     
         sat_tuples = []
         #iterate the cartesian product
