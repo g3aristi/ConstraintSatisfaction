@@ -29,20 +29,16 @@ def ord_mrv(csp):
     (i.e., the variable with the fewest legal values).
     '''
     
-    unasgn_vars = []
-    for var in csp.vars:
-        if not var.is_assigned():
-            unasgn_vars.append(var)
+    unasgn_vars = csp.get_all_unasgn_vars()
     
-    md = -1
-    mv = None
-    for v in unasgn_vars:
-        if md < 0:
-            md = v.cur_domain_size()
-            mv = v
-        elif v.cur_domain_size() < md:
-            md = v.cur_domain_size()
-            mv = v
-    return mv    
+    min_var = unasgn_vars[0]
+    min_d = min_var.cur_domain_size()
+    
+    for i in range(0, len(unasgn_vars)):
+        if unasgn_vars[i].cur_domain_size() < min_d:
+            min_var = unasgn_vars[i]
+            min_d = unasgn_vars[i].cur_domain_size()
+        
+    return min_var
 
 
