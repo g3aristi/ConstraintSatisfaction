@@ -14,14 +14,15 @@ def operation_check(t, r, o):
     True if the 'o'peration applied to the 't'uple yields the 'r'esult
     False otherwise.
     '''
-    if o is 0: #plus
+    if o is 0: # addition
         s = 0
         for n in t:
             s += n
         if s == r:
             return True, t
         return False, t
-    elif o is 1: #minus
+    
+    elif o is 1: # substraction
         for perms in itertools.permutations(t):
             cr = perms[0]
             for i in range(1,len(perms)):
@@ -29,7 +30,8 @@ def operation_check(t, r, o):
             if cr == r:
                 return True, t # there most be a way to return the permutation
         return False, t
-    elif o is 2: #divide
+    
+    elif o is 2: # division
         for perms in itertools.permutations(t):
             cr = perms[0]
             for i in range(1,len(perms)):
@@ -37,7 +39,8 @@ def operation_check(t, r, o):
             if cr == r:
                 return True, t # there most be a way to return the permutation
         return False, t
-    elif o is 3: #multiply
+    
+    elif o is 3: # multiplication
         p = 1
         for n in t:
             p *= n
