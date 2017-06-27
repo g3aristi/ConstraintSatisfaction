@@ -202,6 +202,8 @@ def check_kenken(t, result, operator):
 
 
 def check_kenken_2(t, result):
+    if t == ():
+        return True
     if t[0] != result:
         return False
     return True
