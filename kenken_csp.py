@@ -6,6 +6,7 @@ Construct and return Kenken CSP model.
 
 from cspbase import *
 import itertools
+from copy import deepcopy
 
 def operation_check(t, r, o):
     '''
@@ -170,10 +171,9 @@ def kenken_csp_model(kenken_grid):
         sat_tuples = []
         
         for cp in itertools.product(*varDoms):
-            if len(cage) > 2:
-                result = operation_check(cp, cage[len(cage)-2], cage[len(cage)-1])
-                if result[0]:
-                    sat_tuples.append(result[1])
+            result = operation_check(cp, cage[len(cage)-2], cage[len(cage)-1])
+            if result[0]:
+                sat_tuples.append(result[1])
 
         # make constraints
         con = Constraint("C:cage{})".format(i), scope)
