@@ -7,6 +7,96 @@ Construct and return Kenken CSP model.
 from cspbase import *
 import itertools
 
+def operation_check(t, r, o):
+    '''
+    Returns booling:
+    True if the 'o'peration applied to the 't'uple yields the 'r'esult
+    False otherwise.
+    '''
+    if o is 0: #plus
+        s = 0
+        for n in t:
+            s += n
+        if s == r:
+            return True, t
+        return False, t
+    elif o is 1: #minus
+        for perms in itertools.permutations(t):
+            cr = perms[0]
+            for i in range(1,len(perms)):
+                cr -= perms[i]
+            if cr == r:
+                return True, t # there most be a way to return the permutation
+        return False, t
+    elif o is 2: #divide
+        for perms in itertools.permutations(t):
+            cr = perms[0]
+            for i in range(1,len(perms)):
+                cr /= perms[i]
+            if cr == r:
+                return True, t # there most be a way to return the permutation
+        return False, t
+    elif o is 3: #multiply
+        p = 1
+        for n in t:
+            p *= n
+        if p == r:
+            return True, t
+        return False, t
+
+def row_cons(vars, cur_var, row_index, col_index):
+    '''
+    Returns a list of row constraints
+    '''
+    cur_var_row_cons = []
+    check_row = vars[row_index]
+    for i in range(0, len(check_row)):
+        if i <= col_index:
+            continue
+        else:
+            check_doms = []
+            check_doms.append(cur_var.domain())
+            check_doms.append(check_row[i].domain())
+            sat_tuples = []
+
+            for t in itertools.product(*check_doms):
+                if t[0] != t[1]:
+                    sat_tuples.append(t)
+            con = Constraint("C:V{}{}V{}{}".
+                format(row_index+1, col_index+1, row_index+1, i+1), [cur_var, check_row[i]])
+            con.add_satisfying_tuples(sat_tuples)
+            cur_var_row_cons.append(con)
+
+    return cur_var_row_cons
+
+def col_cons(vars, cur_var, row_index, col_index):
+    '''
+    Returns a list of column constraints
+    '''
+    cur_var_col_cons = []
+    check_col_vars = []
+    for row in vars:
+        check_col_vars.append(row[col_index])
+
+    for i in range(len(check_col_vars)):
+        if i <= row_index:
+            continue
+        else:
+            check_doms = []
+            check_doms.append(cur_var.domain())
+            check_doms.append(check_col_vars[i].domain())
+            sat_tuples = []
+
+            for t in itertools.product(*check_doms):
+                if t[0] != t[1]:
+                    sat_tuples.append(t)
+            con = Constraint("C:V{}{}V{}{}".
+                format(row_index+1, col_index+1, i+1, col_index+1), [cur_var, check_col_vars[i]])
+            con.add_satisfying_tuples(sat_tuples)
+            cur_var_col_cons.append(con)
+
+    return cur_var_col_cons
+
 def kenken_csp_model(kenken_grid):
     '''Returns a CSP object representing a Kenken CSP problem along 
        with an array of variables for the problem. That is return
@@ -45,10 +135,8 @@ def kenken_csp_model(kenken_grid):
        all relevant variables (e.g., all pairs of variables in the
        same row, etc.) and an n-ary constraint for each cage in the grid.
     '''
-
-    ##IMPLEMENT
     
-    #generate dom
+    # generate dom
     size = kenken_grid[0][0]
     dom = []
     i=0
@@ -63,147 +151,55 @@ def kenken_csp_model(kenken_grid):
             each_row.append(Variable('V{}{}'.format(i,j), dom))
         vars.append(each_row)
 
+    # generate constraints
     cons = []
-    #add kenken constraints
     for i in range(1, len(kenken_grid)):
-        each_cage = kenken_grid[i]
+        cage = kenken_grid[i]
 
-        #generate list of lists for looping
         scope = []
         varDoms = []
-        for j in range (0, len(each_cage)-2):
+        for j in range (0, len(cage)-2):
             each_dom = []
             for k in range(1, size+1):
                 each_dom.append(k)
             varDoms.append(each_dom)
-            index1 = int(str(each_cage[j])[0])
-            index2 = int(str(each_cage[j])[1])
+            index1 = int(str(cage[j])[0])
+            index2 = int(str(cage[j])[1])
             scope.append(vars[index1-1][index2-1])
 
         sat_tuples = []
-        #iterate the cartesian product
-        for t in itertools.product(*varDoms):
-            if len(each_cage) > 2:
-                if check_kenken(t, each_cage[len(each_cage)-2], each_cage[len(each_cage)-1]):
-                    sat_tuples.append(t)
-            else:
-                if check_kenken_2(t, each_cage[len(each_cage)-1]):
-                    sat_tuples.append(t)
+        
+        for cp in itertools.product(*varDoms):
+            if len(cage) > 2:
+                result = operation_check(cp, cage[len(cage)-2], cage[len(cage)-1])
+                if result[0]:
+                    sat_tuples.append(result[1])
 
-        #make con
+        # make constraints
         con = Constraint("C:cage{})".format(i), scope)
         con.add_satisfying_tuples(sat_tuples)
         cons.append(con)
 
 
-    #make all binary constraints
-    for i in range(0, len(vars)):
-        row = vars[i]
-        for j in range(len(row)):
-            curr_var = row[j]
-            row_cons = make_row_cons(vars, curr_var, i, j)
-            col_cons = make_col_cons(vars, curr_var, i, j)
-            cons.extend(row_cons)
-            cons.extend(col_cons)
+    # make all binary constraints
+    for v in range(0, len(vars)):
+        row = vars[v]
+        for r in range(len(row)):
+            cur_var = row[r]
+            row_con = row_cons(vars, cur_var, v, r)
+            col_con = col_cons(vars, cur_var, v, r)
+            cons.extend(row_con)
+            cons.extend(col_con)
 
-    kenken_csp = CSP("kenkencsp:size{}".format(size))
+    kenken_csp = CSP("Kenken")
 
-    #add all vars
+    # add vars
     for row in vars:
         for v in row:
             kenken_csp.add_var(v)
 
-    #add all constraints
-    for each_con in cons:
-        kenken_csp.add_constraint(each_con)
+    # add constraints
+    for c in cons:
+        kenken_csp.add_constraint(c)
 
     return kenken_csp, vars
-
-def make_row_cons(vars, curr_var, row_index, col_index):
-    row_cons_for_curvar = []
-    row_to_check = vars[row_index]
-    for i in range(0, len(row_to_check)):
-        if i <= col_index:
-            continue
-        else:
-            domains_to_check = []
-            domains_to_check.append(curr_var.domain())
-            domains_to_check.append(row_to_check[i].domain())
-            sat_tuples = []
-
-            for t in itertools.product(*domains_to_check):
-                if t[0] != t[1]:
-                    sat_tuples.append(t)
-            con = Constraint("C:V{}{}V{}{}".
-                format(row_index+1, col_index+1, row_index+1, i+1), [curr_var, row_to_check[i]])
-            con.add_satisfying_tuples(sat_tuples)
-            row_cons_for_curvar.append(con)
-
-    return row_cons_for_curvar
-
-def make_col_cons(vars, curr_var, row_index, col_index):
-    col_cons_for_curvar = []
-    col_vars_to_check = []
-    #get all vars to check
-    for row in vars:
-        col_vars_to_check.append(row[col_index])
-
-    for i in range(len(col_vars_to_check)):
-        if i <= row_index:
-            continue
-        else:
-            domains_to_check = []
-            domains_to_check.append(curr_var.domain())
-            domains_to_check.append(col_vars_to_check[i].domain())
-            sat_tuples = []
-
-            for t in itertools.product(*domains_to_check):
-                if t[0] != t[1]:
-                    sat_tuples.append(t)
-            con = Constraint("C:V{}{}V{}{}".
-                format(row_index+1, col_index+1, i+1, col_index+1), [curr_var, col_vars_to_check[i]])
-            con.add_satisfying_tuples(sat_tuples)
-            col_cons_for_curvar.append(con)
-
-    return col_cons_for_curvar
-
-
-def check_kenken(t, result, operator):
-    if operator == 0: #plus
-        sum = 0
-        for num in t:
-            sum += num
-        if sum == result:
-            return True
-        return False
-    elif operator == 1: #minus
-        for perms in itertools.permutations(t):
-            curr_result = perms[0]
-            for i in range(1,len(perms)):
-                curr_result = curr_result-perms[i]
-            if curr_result == result:
-                return True
-        return False
-    elif operator == 2: #divide
-        for perms in itertools.permutations(t):
-            curr_result = perms[0]
-            for i in range(1,len(perms)):
-                curr_result = curr_result/perms[i]
-            if curr_result == result:
-                return True
-        return False
-    elif operator == 3: #multiply
-        product = 1
-        for num in t:
-            product = product * num
-        if product == result:
-            return True
-        return False
-
-
-def check_kenken_2(t, result):
-    if t == ():
-        return True
-    if t[0] != result:
-        return False
-    return True
