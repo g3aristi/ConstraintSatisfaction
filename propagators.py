@@ -126,7 +126,7 @@ def prop_FC(csp, newVar=None):
     else:
         pruned = []
         for c in csp.get_cons_with_var(newVar):
-            #do forward check
+            # do forward check
             status, pruned = check_var_in_cons(pruned, c)
             if status == False:
                 return False, pruned
@@ -141,6 +141,7 @@ def enforce_gac(csp, queue, pruned):
         checked.append(c)
         for v in c.get_scope(): 
             for d in v.cur_domain():
+                
                 #find an assignment for each value d
                 if not c.has_support(v, d):
                     pruned.append((v, d))
@@ -168,11 +169,12 @@ def prop_GAC(csp, newVar=None):
     pruned = []
     all_cons = csp.get_all_cons()
     q = Queue(len(all_cons)) 
-    # all constraints
+
     if newVar is None:
         for c in all_cons:
             q.put(c)
         return enforce_gac(csp, q, pruned)
+    
     # GAC enforce with constraints containing newVar on GAC Queue 
     else:
         cons = csp.get_cons_with_var(newVar)
